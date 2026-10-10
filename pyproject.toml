@@ -1,0 +1,22 @@
+[project]
+name = "financeai"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Тишкин Андрей", email = "atishkin060705@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "click>=8.5.0",
+    "openai>=3.28.0",
+    "python-dotenv>=1.2.4",
+    "rich>=15.0.0",
+]
+
+[project.scripts]
+financeai = "financeai:main"
+
+[build-system]
+requires = ["uv_build>=0.12.15,<0.13.0"]
+build-backend = "uv_build"
