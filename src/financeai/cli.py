@@ -10,10 +10,11 @@ from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.prompt import Prompt
 from rich.text import Text
 
 from .agent import Agent
-from .config import base_dir
+from .config import base_dir, config_file, has_api_key, save_api_key
 from .prompts import scaffold
 
 console = Console()
@@ -108,6 +109,32 @@ class StreamRenderer:
         self._mode = None
 
 
+def _ensure_api_key() -> None:
+    if has_api_key():
+        return
+    console.print(
+        Panel.fit(
+            "Ключ DeepSeek не найден. Укажем его один раз — он сохранится локально.\n"
+            "Получить ключ: [link=https://platform.deepseek.com/api_keys]"
+            "https://platform.deepseek.com/api_keys[/link]",
+            border_style="yellow",
+            title="Первый запуск",
+        )
+    )
+    try:
+        key = Prompt.ask("[bold cyan]Вставьте API-ключ DeepSeek[/]", password=True)
+    except (EOFError, KeyboardInterrupt):
+        console.print("\n[red]Ключ не задан — выходим.[/]")
+        raise SystemExit(1)
+    if not key.strip():
+        console.print("[red]Пустой ключ — выходим.[/]")
+        raise SystemExit(1)
+    save_api_key(key)
+    console.print(
+        f"[green]Готово![/] Ключ сохранён в [dim]{config_file()}[/dim]\n"
+    )
+
+
 def _banner() -> None:
     console.print(
         Panel.fit(
@@ -124,7 +151,7 @@ def _banner() -> None:
     "directory",
     type=click.Path(),
     default=None,
-    help="Рабочая папка с .md-файлами (по умолчанию ~/financeai).",
+    help="Рабочая папка с .md-файлами (по умолчанию ~/.financeai).",
 )
 @click.pass_context
 def cli(ctx: click.Context, directory: str | None) -> None:
@@ -136,6 +163,7 @@ def cli(ctx: click.Context, directory: str | None) -> None:
 
 @cli.command()
 def chat() -> None:
+    _ensure_api_key()
     scaffold()
     _banner()
     try:
@@ -200,6 +228,28 @@ def init() -> None:
 @cli.command()
 def where() -> None:
     console.print(str(base_dir()))
+
+
+@cli.command()
+def config() -> None:
+    console.print(f"Файл конфигурации: {config_file()}")
+    status = "[green]задан[/]" if has_api_key() else "[red]не задан[/]"
+    console.print(f"Ключ DeepSeek: {status}")
+    console.print(f"Рабочая папка: {base_dir()}")
+
+
+@cli.command("set-key")
+def set_key() -> None:
+    try:
+        key = Prompt.ask("[bold cyan]Новый API-ключ DeepSeek[/]", password=True)
+    except (EOFError, KeyboardInterrupt):
+        console.print("\n[red]Отменено.[/]")
+        raise SystemExit(1)
+    if not key.strip():
+        console.print("[red]Пустой ключ — ничего не изменил.[/]")
+        raise SystemExit(1)
+    save_api_key(key)
+    console.print(f"[green]Ключ сохранён в[/] [dim]{config_file()}[/dim]")
 
 
 def main() -> None:
